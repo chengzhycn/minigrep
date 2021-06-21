@@ -1,28 +1,31 @@
-use std::env;
 use std::error::Error;
 use std::fs;
 
+use clap::ArgMatches;
+
+#[derive(Debug)]
 pub struct Config {
     pub query: String,
     pub filename: String,
-    pub case_sensitive: bool,
+    pub case_insensitive: bool,
 }
 
 impl Config {
-    pub fn new(args: &[String]) -> Result<Config, &'static str> {
-        // args check
-        if args.len() < 3 {
-            return Err("not enough arguments");
+    pub fn new(opts: &ArgMatches) -> Result<Config, &'static str> {
+        if opts.value_of("query").is_none() {
+            return Err("query must be specified.");
         }
 
-        let query = args[1].clone();
-        let filename = args[2].clone();
-        let case_sensitive = env::var("CASE_INSENSITIVE").is_err();
+        if opts.value_of("file").is_none() {
+            return Err("file must be specified.");
+        }
+
+        let case_insensitive = opts.is_present("case_insensitive");
 
         Ok(Config {
-            query,
-            filename,
-            case_sensitive,
+            query: opts.value_of("query").unwrap().to_string(),
+            filename: opts.value_of("file").unwrap().to_string(),
+            case_insensitive,
         })
     }
 }
@@ -30,10 +33,10 @@ impl Config {
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let contents = fs::read_to_string(&config.filename)?;
 
-    let result = if config.case_sensitive {
-        search(&config.query, &contents)
-    } else {
+    let result = if config.case_insensitive {
         search_case_insensitive(&config.query, &contents)
+    } else {
+        search(&config.query, &contents)
     };
 
     for line in result {
